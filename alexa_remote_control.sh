@@ -845,14 +845,15 @@ if [ -n "${SEQUENCECMD}" ] ; then
 	fi
 
 	# Due to some weird shell-escape-behavior the command has to be written to a file before POSTing it
-	echo $ALEXACMD > "${TMP}/.alexa.cmd"
+	CMD_SUFFIX=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1`
+	echo $ALEXACMD > "${TMP}/.alexa.cmd.${CMD_SUFFIX}"
 
 	${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
 	 -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
-	 -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X POST -d @"${TMP}/.alexa.cmd" \
+	 -H "csrf: $(awk "\$0 ~/.${AMAZON}.*csrf[ \\s\\t]+/ {print \$7}" ${COOKIE})" -X POST -d @"${TMP}/.alexa.cmd.${CMD_SUFFIX}" \
 	 "https://${ALEXA}/api/behaviors/preview"
 
-	rm -f "${TMP}/.alexa.cmd"
+	rm -f "${TMP}/.alexa.cmd.${CMD_SUFFIX}"
 else
 	${CURL} ${OPTS} -s -b ${COOKIE} -A "${BROWSER}" -H "DNT: 1" -H "Connection: keep-alive" -L\
 	 -H "Content-Type: application/json; charset=UTF-8" -H "Referer: https://alexa.${AMAZON}/spa/index.html" -H "Origin: https://alexa.${AMAZON}"\
