@@ -221,6 +221,7 @@ usage()
 	echo "        speak:'<text/ssml>',automation:'<routine name>',sound:<soundeffect_name>,"
 	echo "        textcommand:'<anything you would otherwise say to Alexa>',"
 	echo "        playmusic:<channel e.g. TUNEIN, AMAZON_MUSIC>:'<music name>'"
+	echo "        announcement:'<text/ssml>'"
 	echo "   -b : connect/disconnect/list bluetooth device"
 	echo "   -c : list 'playmusic' channels"
 	echo "   -q : query queue"
@@ -456,6 +457,18 @@ case "$COMMAND" in
 			TTS=$(echo ${COMMAND##speak:} | sed s/\"/\'/g)
 			TTS=',\"textToSpeak\":\"'${TTS}'\"'
 			SEQUENCECMD='Alexa.Speak'
+			SEQUENCEVAL=$TTS
+			;;
+	announcement:*)
+			TTS=$(echo ${COMMAND##announcement:} | sed s/\"/\'/g)
+			if [ $(echo $TTS | grep '<speak>') ] ; then
+				ANNOUNCEMENT_TYPE='ssml'
+			else
+				ANNOUNCEMENT_TYPE='text'
+			fi
+			DISPLAY_BODY=$(echo ${TTS} | sed -r 's/<[^>]+>//g')
+			TTS=',\"content\":[{\"speak\":{\"type\":\"'${ANNOUNCEMENT_TYPE}'\",\"value\":\"'${TTS}'\"},\"display\":{\"title\":\"Amazon Alexa Remote Control\",\"body\":\"'${DISPLAY_BODY}'\"},\"locale\":\"'${TTS_LOCALE}'\"}]'
+			SEQUENCECMD='AlexaAnnouncement'
 			SEQUENCEVAL=$TTS
 			;;
 	sound:*)
@@ -714,6 +727,8 @@ node()
 {
 	if [ -n "$1" -a -n "$2" ] ; then
 		echo '{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\",\"type\":\"'${1}'\",\"operationPayload\":{\"deviceType\":\"'${DEVICETYPE}'\",\"deviceSerialNumber\":\"'${DEVICESERIALNUMBER}'\",\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"locale\":\"'${TTS_LOCALE}'\"'${2}'}}'
+	elif [ "${SEQUENCECMD}" = 'AlexaAnnouncement' ] ; then
+		echo '{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\",\"type\":\"'${SEQUENCECMD}'\",\"operationPayload\":{\"expireAfter\":\"PT5S\",\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"target\":{\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"devices\":[{\"deviceSerialNumber\":\"'${DEVICESERIALNUMBER}'\",\"deviceTypeId\":\"'${DEVICETYPE}'\"}]}'${SEQUENCEVAL}'}}'
 	else
 		echo '{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\",\"type\":\"'${SEQUENCECMD}'\",\"operationPayload\":{\"deviceType\":\"'${DEVICETYPE}'\",\"deviceSerialNumber\":\"'${DEVICESERIALNUMBER}'\",\"customerId\":\"'${MEDIAOWNERCUSTOMERID}'\",\"locale\":\"'${TTS_LOCALE}'\"'${SEQUENCEVAL}'}}'
 	fi
